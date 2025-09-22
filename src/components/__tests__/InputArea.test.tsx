@@ -1,10 +1,5 @@
-import {
-  render,
-  screen,
-  fireEvent,
-  waitFor,
-  act,
-} from "@testing-library/react";
+import { render, act } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import userEvent from "@testing-library/user-event";
 import InputArea from "../InputArea";

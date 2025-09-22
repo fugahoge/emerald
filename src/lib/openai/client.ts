@@ -15,8 +15,9 @@ export interface OpenAIClientConfig {
 }
 
 const DEFAULT_CONFIG = {
-  model: "gpt-4.1",
-  baseUrl: "https://api.openai.com/v1/chat/completions",
+  model: "google/gemma-3-4b",
+  //  baseUrl: "https://api.openai.com/v1/chat/completions",
+  baseUrl: "http://127.0.0.1:1234/v1/chat/completions",
 };
 
 export class OpenAIClient {

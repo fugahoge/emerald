@@ -1,4 +1,5 @@
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { renderHook, act } from "@testing-library/react";
+import { waitFor } from "@testing-library/dom";
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useStorage } from "../useStorage";
 import { chromeMock } from "../../test/mocks/chrome";

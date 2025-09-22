@@ -21,11 +21,11 @@ export const useApi = () => {
     setError(null);
 
     try {
-      if (!settings.openaiApiKey) {
-        throw new ApiError(
-          "OpenAI API key not configured. Please set it in the settings.",
-        );
-      }
+      //if (!settings.openaiApiKey) {
+      //  throw new ApiError(
+      //    "OpenAI API key not configured. Please set it in the settings.",
+      //  );
+      //}
 
       const client = new OpenAIClient({
         apiKey: settings.openaiApiKey,

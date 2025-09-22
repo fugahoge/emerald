@@ -1,4 +1,5 @@
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render } from "@testing-library/react";
+import { screen, fireEvent, waitFor } from "@testing-library/dom";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import ImageSelector from "../ImageSelector";
 
