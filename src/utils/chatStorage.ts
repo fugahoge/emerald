@@ -26,6 +26,10 @@ export const chatStorage = {
   },
 
   async saveChatHistory(threadId: string, messages: Message[]): Promise<void> {
+    // 会話保存機能を無効化 - ストレージに保存しない
+    console.log("Chat history saving disabled - not saving to storage");
+    return;
+
     try {
       let title = "";
       try {
