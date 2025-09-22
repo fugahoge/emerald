@@ -134,8 +134,10 @@ describe("useChatThread", () => {
     });
 
     expect(result.current.messages[0].status).toBe("done");
-    // 会話保存が無効化されているため、saveChatHistoryは呼ばれない
-    expect(chatStorage.saveChatHistory).not.toHaveBeenCalled();
+    expect(chatStorage.saveChatHistory).toHaveBeenCalledWith(
+      "test-uuid-123",
+      result.current.messages,
+    );
   });
 
   it("completeLastMessage does not change state for non-AI messages", async () => {

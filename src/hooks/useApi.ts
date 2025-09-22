@@ -29,6 +29,7 @@ export const useApi = () => {
 
       const client = new OpenAIClient({
         apiKey: settings.openaiApiKey,
+        model: settings.aiModel,
       });
 
       const messageBuilder = new MessageBuilder();

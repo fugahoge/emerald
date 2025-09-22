@@ -45,7 +45,7 @@ export const useChatThread = () => {
           };
         }
       }
-      // chatStorage.saveChatHistory(getThreadId(), newMessages); // 会話保存を無効化
+      chatStorage.saveChatHistory(getThreadId(), newMessages);
       return newMessages;
     });
   };

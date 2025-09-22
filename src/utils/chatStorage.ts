@@ -26,10 +26,6 @@ export const chatStorage = {
   },
 
   async saveChatHistory(threadId: string, messages: Message[]): Promise<void> {
-    // 会話保存機能を無効化 - ストレージに保存しない
-    console.log("Chat history saving disabled - not saving to storage");
-    return;
-
     try {
       let title = "";
       try {
@@ -78,6 +74,26 @@ export const chatStorage = {
       await chrome.storage.local.set({ "system/history": recentHistory });
     } catch (error) {
       console.error("Failed to save chat history:", error);
+    }
+  },
+
+  async clearAllChatHistory(): Promise<void> {
+    try {
+      // 全てのチャット履歴を取得
+      const historyResult = await chrome.storage.local.get("system/history");
+      const history: ChatHistoryItem[] = historyResult["system/history"] || [];
+
+      // 個別のチャットデータを削除
+      const keysToRemove = history.map((item) => `chat_${item.threadId}`);
+
+      // システム履歴も削除
+      keysToRemove.push("system/history");
+
+      // ストレージから削除
+      await chrome.storage.local.remove(keysToRemove);
+    } catch (error) {
+      console.error("Failed to clear chat history:", error);
+      throw error;
     }
   },
 };
