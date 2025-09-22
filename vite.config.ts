@@ -26,4 +26,7 @@ export default defineConfig({
       ],
     }),
   ],
+  build: {
+    chunkSizeWarningLimit: 1000, // チャンクサイズ警告の閾値を1000kBに増加
+  },
 });
