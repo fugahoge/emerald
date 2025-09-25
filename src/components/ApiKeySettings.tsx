@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@mui/material";
 import { Visibility, VisibilityOff, Delete } from "@mui/icons-material";
-import { useSettings } from "../hooks/useSettings";
+import { useSettings, DEFAULT_SETTINGS } from "../hooks/useSettings";
 import { chatStorage } from "../utils/chatStorage";
 
 const ApiKeySettings: React.FC = () => {
@@ -66,10 +66,6 @@ const ApiKeySettings: React.FC = () => {
     }
   };
 
-  const isValidApiKey = (key: string) => {
-    return key.startsWith("sk-") && key.length > 20;
-  };
-
   const handleClearHistory = async () => {
     setClearHistoryStatus("clearing");
     try {
@@ -96,16 +92,13 @@ const ApiKeySettings: React.FC = () => {
         type={showApiKey ? "text" : "password"}
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
-        placeholder="sk-..."
+        placeholder={DEFAULT_SETTINGS.openaiApiKey}
         margin="normal"
         disabled={loading}
-        error={apiKey.length > 0 && !isValidApiKey(apiKey)}
         helperText={
           loading
             ? "Loading settings..."
-            : apiKey.length > 0 && !isValidApiKey(apiKey)
-              ? "API key should start with 'sk-' and be at least 20 characters long"
-              : "Get your API key from https://platform.openai.com/api-keys"
+            : "Get your API key from https://platform.openai.com/api-keys (optional for local LLMs)"
         }
         InputProps={{
           endAdornment: (
@@ -127,7 +120,7 @@ const ApiKeySettings: React.FC = () => {
         label="AI Model"
         value={aiModel}
         onChange={(e) => setAiModel(e.target.value)}
-        placeholder="google/gemma-3-4b"
+        placeholder={DEFAULT_SETTINGS.aiModel}
         margin="normal"
         disabled={loading}
         helperText={
@@ -142,7 +135,7 @@ const ApiKeySettings: React.FC = () => {
         label="API Endpoint"
         value={apiEndpoint}
         onChange={(e) => setApiEndpoint(e.target.value)}
-        placeholder="http://127.0.0.1:1234/v1/chat/completions"
+        placeholder={DEFAULT_SETTINGS.apiEndpoint}
         margin="normal"
         disabled={loading}
         helperText={
@@ -160,7 +153,7 @@ const ApiKeySettings: React.FC = () => {
         maxRows={8}
         value={systemPrompt}
         onChange={(e) => setSystemPrompt(e.target.value)}
-        placeholder="System prompt that will be sent at the start of each new conversation..."
+        placeholder={DEFAULT_SETTINGS.systemPrompt}
         margin="normal"
         disabled={loading}
         helperText={
@@ -175,8 +168,6 @@ const ApiKeySettings: React.FC = () => {
         onClick={handleSave}
         disabled={
           loading ||
-          !apiKey ||
-          !isValidApiKey(apiKey) ||
           !systemPrompt.trim() ||
           !aiModel.trim() ||
           !apiEndpoint.trim() ||

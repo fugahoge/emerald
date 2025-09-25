@@ -7,18 +7,13 @@ import {
 } from "../../types/openai";
 import { StreamProcessor, StreamCallbacks } from "./stream-processor";
 import { ToolExecutor, AVAILABLE_TOOLS } from "../tools/executor";
+import { DEFAULT_SETTINGS } from "../../hooks/useSettings";
 
 export interface OpenAIClientConfig {
-  apiKey: string;
+  apiKey?: string;
   model?: string;
   baseUrl?: string;
 }
-
-const DEFAULT_CONFIG = {
-  model: "google/gemma-3-4b",
-  //  baseUrl: "https://api.openai.com/v1/chat/completions",
-  baseUrl: "http://127.0.0.1:1234/v1/chat/completions",
-};
 
 export class OpenAIClient {
   private config: Required<OpenAIClientConfig>;
@@ -26,7 +21,11 @@ export class OpenAIClient {
   private toolExecutor: ToolExecutor;
 
   constructor(config: OpenAIClientConfig) {
-    this.config = { ...DEFAULT_CONFIG, ...config };
+    this.config = {
+      apiKey: config.apiKey || DEFAULT_SETTINGS.openaiApiKey,
+      model: config.model || DEFAULT_SETTINGS.aiModel,
+      baseUrl: config.baseUrl || DEFAULT_SETTINGS.apiEndpoint,
+    };
     this.streamProcessor = new StreamProcessor();
     this.toolExecutor = new ToolExecutor();
   }

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { ApiRequest, Message, ImageData } from "../types";
-import { useSettings } from "./useSettings";
+import { useSettings, DEFAULT_SETTINGS } from "./useSettings";
 import { OpenAIClient } from "../lib/openai/client";
 import { MessageBuilder } from "../lib/message-builder";
 import { ApiError } from "../types/openai";
@@ -21,15 +21,22 @@ export const useApi = () => {
     setError(null);
 
     try {
-      //if (!settings.openaiApiKey) {
-      //  throw new ApiError(
-      //    "OpenAI API key not configured. Please set it in the settings.",
-      //  );
-      //}
+      if (!settings.openaiApiKey) {
+        settings.openaiApiKey = DEFAULT_SETTINGS.openaiApiKey;
+      }
+
+      if (!settings.aiModel) {
+        settings.aiModel = DEFAULT_SETTINGS.aiModel;
+      }
+
+      if (!settings.apiEndpoint) {
+        settings.apiEndpoint = DEFAULT_SETTINGS.apiEndpoint;
+      }
 
       const client = new OpenAIClient({
         apiKey: settings.openaiApiKey,
         model: settings.aiModel,
+        baseUrl: settings.apiEndpoint,
       });
 
       const messageBuilder = new MessageBuilder();
