@@ -74,4 +74,26 @@ export const chatStorage = {
       console.error("Failed to save chat history:", error);
     }
   },
+
+  async clearAllChatHistory(): Promise<void> {
+    try {
+      // 全てのチャット履歴を取得
+      const history =
+        (await storage.get<ChatHistoryItem[]>("system/history")) || [];
+
+      // 個別のチャットデータを削除
+      const deletePromises = history.map((item) =>
+        storage.remove(`chat_${item.threadId}`),
+      );
+
+      // システム履歴も削除
+      deletePromises.push(storage.remove("system/history"));
+
+      // 全て削除を実行
+      await Promise.all(deletePromises);
+    } catch (error) {
+      console.error("Failed to clear chat history:", error);
+      throw error;
+    }
+  },
 };
