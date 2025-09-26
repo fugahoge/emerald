@@ -1,5 +1,6 @@
 {
-  "manifest_version": 3,
+  "{{chrome}}.manifest_version": 3,
+  "{{firefox}}.manifest_version": 2,
   "name": "Emerald",
   "version": "1.0.0",
   "description": "Chrome extension for OpenAI API integration",
@@ -10,12 +11,16 @@
     "96": "icon/96.png",
     "128": "icon/128.png"
   },
-  "action": {},
-  "side_panel": {
+  "{{chrome}}.action": {},
+  "{{chrome}}.side_panel": {
     "default_path": "src/sidepanel/index.html"
   },
+  "{{firefox}}.browser_action": {
+    "default_popup": "src/popup.html"
+  },
   "background": {
-    "service_worker": "src/background/background.ts"
+    "{{chrome}}.service_worker": "src/background/background.ts",
+    "{{firefox}}.scripts": ["src/background/background.ts"]
   },
   "content_scripts": [
     {

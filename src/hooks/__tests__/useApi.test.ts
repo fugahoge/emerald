@@ -17,20 +17,30 @@ vi.mock("../useSettings", () => ({
   }),
 }));
 
-// Mock OpenAI client and related modules
-vi.mock("../../lib/openai/client", () => ({
-  OpenAIClient: vi.fn().mockImplementation(() => ({
-    sendMessage: vi.fn(),
-  })),
-}));
+// Mock ReadableStreamDefaultReader
+const createMockReader = (chunks: string[]) => {
+  let index = 0;
+  return {
+    read: vi.fn().mockImplementation(() => {
+      if (index >= chunks.length) {
+        return Promise.resolve({ done: true, value: undefined });
+      }
+      const chunk = new TextEncoder().encode(chunks[index]);
+      index++;
+      return Promise.resolve({ done: false, value: chunk });
+    }),
+  };
+};
 
-vi.mock("../../lib/message-builder", () => ({
-  MessageBuilder: vi.fn().mockImplementation(() => ({
-    buildMessages: vi
-      .fn()
-      .mockReturnValue([{ role: "user", content: "test message" }]),
-  })),
-}));
+// Create mock Response
+const createMockResponse = (chunks: string[], status = 200) => ({
+  ok: status >= 200 && status < 300,
+  status,
+  statusText: status === 200 ? "OK" : "Error",
+  body: {
+    getReader: () => createMockReader(chunks),
+  },
+});
 
 describe("useApi", () => {
   const mockRequest: ApiRequest = {
@@ -65,32 +75,13 @@ describe("useApi", () => {
   });
 
   it("should handle normal streaming response", async () => {
-    const { OpenAIClient } = await import("../../lib/openai/client");
-    const { MessageBuilder } = await import("../../lib/message-builder");
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"Hello"}}]}\n',
+      'data: {"choices":[{"delta":{"content":" World"}}]}\n',
+      "data: [DONE]\n",
+    ];
 
-    const mockSendMessage = vi
-      .fn()
-      .mockImplementation(async (messages, callbacks) => {
-        callbacks.onContent?.("Hello");
-        callbacks.onContent?.(" World");
-        callbacks.onComplete?.();
-      });
-
-    (OpenAIClient as any).mockImplementation(() => ({
-      sendMessage: mockSendMessage,
-    }));
-
-    const mockBuildMessages = vi.fn().mockReturnValue([
-      {
-        role: "system",
-        content: "You are a helpful AI assistant for testing.",
-      },
-      { role: "user", content: "Hello, OpenAI!" },
-    ]);
-
-    (MessageBuilder as any).mockImplementation(() => ({
-      buildMessages: mockBuildMessages,
-    }));
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
 
     const onMessage = vi.fn();
     const onComplete = vi.fn();
@@ -107,28 +98,29 @@ describe("useApi", () => {
       );
     });
 
-    expect(OpenAIClient).toHaveBeenCalledWith({
-      apiKey: "sk-test-key-123",
-    });
-
-    expect(MessageBuilder).toHaveBeenCalled();
-    expect(mockBuildMessages).toHaveBeenCalledWith(
-      "Hello, OpenAI!",
-      [],
-      "You are a helpful AI assistant for testing.",
-      undefined,
-    );
-
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({ role: "system" }),
-        expect.objectContaining({ role: "user" }),
-      ]),
-      expect.objectContaining({
-        onContent: expect.any(Function),
-        onComplete: expect.any(Function),
-        onError: expect.any(Function),
-      }),
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer sk-test-key-123",
+        },
+        body: JSON.stringify({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: "You are a helpful AI assistant for testing.",
+            },
+            {
+              role: "user",
+              content: "Hello, OpenAI!",
+            },
+          ],
+          stream: true,
+        }),
+      },
     );
 
     expect(onMessage).toHaveBeenCalledWith("Hello");
@@ -139,20 +131,12 @@ describe("useApi", () => {
   });
 
   it("should send conversation history to OpenAI", async () => {
-    const { MessageBuilder } = await import("../../lib/message-builder");
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"Response"}}]}\n',
+      "data: [DONE]\n",
+    ];
 
-    const mockBuildMessages = vi.fn().mockReturnValue([
-      { role: "user", content: "What is the weather?" },
-      {
-        role: "assistant",
-        content: "I need more information about your location.",
-      },
-      { role: "user", content: "Hello, OpenAI!" },
-    ]);
-
-    (MessageBuilder as any).mockImplementation(() => ({
-      buildMessages: mockBuildMessages,
-    }));
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
 
     const { result } = renderHook(() => useApi());
 
@@ -160,30 +144,128 @@ describe("useApi", () => {
       await result.current.sendMessage(mockRequest, mockConversationHistory);
     });
 
-    expect(mockBuildMessages).toHaveBeenCalledWith(
-      "Hello, OpenAI!",
-      mockConversationHistory,
-      "You are a helpful AI assistant for testing.",
-      undefined,
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer sk-test-key-123",
+        },
+        body: JSON.stringify({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "user",
+              content: "What is the weather?",
+            },
+            {
+              role: "assistant",
+              content: "I need more information about your location.",
+            },
+            {
+              role: "user",
+              content: "Hello, OpenAI!",
+            },
+          ],
+          stream: true,
+        }),
+      },
     );
   });
 
-  // Note: Context data is now handled via tool calls instead of direct message injection
+  it("should include context data in message", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"Response"}}]}\n',
+      "data: [DONE]\n",
+    ];
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
 
-  // Note: Partial context data test removed as context is now handled via tool calls
+    const contextData = {
+      text: "Page content here",
+    };
 
-  it("should handle client errors", async () => {
-    const { OpenAIClient } = await import("../../lib/openai/client");
+    const { result } = renderHook(() => useApi());
 
-    const mockSendMessage = vi
-      .fn()
-      .mockImplementation(async (messages, callbacks) => {
-        callbacks.onError?.(new Error("HTTP 500: Error"));
-      });
+    await act(async () => {
+      await result.current.sendMessage(mockRequest, [], contextData);
+    });
 
-    (OpenAIClient as any).mockImplementation(() => ({
-      sendMessage: mockSendMessage,
-    }));
+    const expectedMessage = `Hello, OpenAI!
+
+Page content: Page content here`;
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer sk-test-key-123",
+        },
+        body: JSON.stringify({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: "You are a helpful AI assistant for testing.",
+            },
+            {
+              role: "user",
+              content: expectedMessage,
+            },
+          ],
+          stream: true,
+        }),
+      },
+    );
+  });
+
+  it("should handle partial context data", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"Response"}}]}\n',
+      "data: [DONE]\n",
+    ];
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
+
+    const contextData = {};
+
+    const { result } = renderHook(() => useApi());
+
+    await act(async () => {
+      await result.current.sendMessage(mockRequest, [], contextData);
+    });
+
+    const expectedMessage = `Hello, OpenAI!`;
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer sk-test-key-123",
+        },
+        body: JSON.stringify({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: "You are a helpful AI assistant for testing.",
+            },
+            {
+              role: "user",
+              content: expectedMessage,
+            },
+          ],
+          stream: true,
+        }),
+      },
+    );
+  });
+
+  it("should handle HTTP errors", async () => {
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse([], 500));
 
     const { result } = renderHook(() => useApi());
 
@@ -195,18 +277,8 @@ describe("useApi", () => {
     expect(result.current.error).toBe("HTTP 500: Error");
   });
 
-  it("should handle missing API key", async () => {
-    // This test is complex due to mocking limitations,
-    // but the functionality is covered in integration testing
-    expect(true).toBe(true);
-  });
-
-  it("should handle thrown errors", async () => {
-    const { OpenAIClient } = await import("../../lib/openai/client");
-
-    (OpenAIClient as any).mockImplementation(() => {
-      throw new Error("Construction failed");
-    });
+  it("should handle network errors", async () => {
+    global.fetch = vi.fn().mockRejectedValueOnce(new Error("Network error"));
 
     const { result } = renderHook(() => useApi());
 
@@ -215,10 +287,32 @@ describe("useApi", () => {
     });
 
     expect(result.current.loading).toBe(false);
-    expect(result.current.error).toBe("Construction failed");
+    expect(result.current.error).toBe("Network error");
+  });
+
+  it("should handle API error responses", async () => {
+    const chunks = ['data: {"error":{"message":"Invalid request"}}\n'];
+
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
+
+    const { result } = renderHook(() => useApi());
+
+    await act(async () => {
+      await result.current.sendMessage(mockRequest);
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBe("Invalid request");
   });
 
   it("should set loading flag correctly during sending", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"Response"}}]}\n',
+      "data: [DONE]\n",
+    ];
+
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
+
     const { result } = renderHook(() => useApi());
 
     expect(result.current.loading).toBe(false);
@@ -230,10 +324,43 @@ describe("useApi", () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it("should handle context data with images", async () => {
-    const contextData = {
-      images: [{ dataUrl: "data:image/png;base64,abc123", timestamp: 123456 }],
-    };
+  it("should handle multiple lines of data correctly", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"First"}}]}\ndata: {"choices":[{"delta":{"content":" Second"}}]}\n',
+      'data: {"choices":[{"delta":{"content":" Third"}}]}\ndata: [DONE]\n',
+    ];
+
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
+
+    const onMessage = vi.fn();
+    const onComplete = vi.fn();
+
+    const { result } = renderHook(() => useApi());
+
+    await act(async () => {
+      await result.current.sendMessage(
+        mockRequest,
+        [],
+        undefined,
+        onMessage,
+        onComplete,
+      );
+    });
+
+    expect(onMessage).toHaveBeenNthCalledWith(1, "First");
+    expect(onMessage).toHaveBeenNthCalledWith(2, " Second");
+    expect(onMessage).toHaveBeenNthCalledWith(3, " Third");
+    expect(onComplete).toHaveBeenCalled();
+  });
+
+  it("should send message with empty context data", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"Response"}}]}\n',
+      "data: [DONE]\n",
+    ];
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
+
+    const contextData = {};
 
     const { result } = renderHook(() => useApi());
 
@@ -241,6 +368,73 @@ describe("useApi", () => {
       await result.current.sendMessage(mockRequest, [], contextData);
     });
 
-    expect(result.current.loading).toBe(false);
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer sk-test-key-123",
+        },
+        body: JSON.stringify({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "system",
+              content: "You are a helpful AI assistant for testing.",
+            },
+            {
+              role: "user",
+              content: "Hello, OpenAI!",
+            },
+          ],
+          stream: true,
+        }),
+      },
+    );
+  });
+
+  it("should not send system prompt when there is conversation history", async () => {
+    const chunks = [
+      'data: {"choices":[{"delta":{"content":"Response"}}]}\n',
+      "data: [DONE]\n",
+    ];
+
+    global.fetch = vi.fn().mockResolvedValueOnce(createMockResponse(chunks));
+
+    const { result } = renderHook(() => useApi());
+
+    await act(async () => {
+      await result.current.sendMessage(mockRequest, mockConversationHistory);
+    });
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer sk-test-key-123",
+        },
+        body: JSON.stringify({
+          model: "gpt-5",
+          messages: [
+            {
+              role: "user",
+              content: "What is the weather?",
+            },
+            {
+              role: "assistant",
+              content: "I need more information about your location.",
+            },
+            {
+              role: "user",
+              content: "Hello, OpenAI!",
+            },
+          ],
+          stream: true,
+        }),
+      },
+    );
   });
 });
