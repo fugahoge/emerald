@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   TextField,
@@ -14,13 +14,15 @@ import {
   DialogTitle,
 } from "@mui/material";
 import { Visibility, VisibilityOff, Delete } from "@mui/icons-material";
-import { useSettings } from "../hooks/useSettings";
+import { useSettings, DEFAULT_SETTINGS } from "../hooks/useSettings";
 import { chatStorage } from "../utils/chatStorage";
 
 const ApiKeySettings: React.FC = () => {
-  const { settings, updateApiKey, updateSystemPrompt } = useSettings();
+  const { settings, saveSettings, loading } = useSettings();
   const [apiKey, setApiKey] = useState(settings.openaiApiKey);
   const [systemPrompt, setSystemPrompt] = useState(settings.systemPrompt);
+  const [aiModel, setAiModel] = useState(settings.aiModel);
+  const [apiEndpoint, setApiEndpoint] = useState(settings.apiEndpoint);
   const [showApiKey, setShowApiKey] = useState(false);
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "success" | "error"
@@ -30,14 +32,37 @@ const ApiKeySettings: React.FC = () => {
   >("idle");
   const [showClearDialog, setShowClearDialog] = useState(false);
 
+  // 設定が読み込まれたときに状態を更新
+  useEffect(() => {
+    if (!loading) {
+      setApiKey(settings.openaiApiKey);
+      setSystemPrompt(settings.systemPrompt);
+      setAiModel(settings.aiModel);
+      setApiEndpoint(settings.apiEndpoint);
+    }
+  }, [
+    settings.openaiApiKey,
+    settings.systemPrompt,
+    settings.aiModel,
+    settings.apiEndpoint,
+    loading,
+  ]);
+
   const handleSave = async () => {
     setSaveStatus("saving");
     try {
-      await updateApiKey(apiKey);
-      await updateSystemPrompt(systemPrompt);
+      const settingsToSave = {
+        openaiApiKey: apiKey,
+        systemPrompt,
+        aiModel,
+        apiEndpoint,
+      };
+      console.log("Saving settings:", settingsToSave);
+      await saveSettings(settingsToSave);
       setSaveStatus("success");
       setTimeout(() => setSaveStatus("idle"), 2000);
     } catch (error) {
+      console.error("Failed to save settings:", error);
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 2000);
     }
@@ -57,29 +82,25 @@ const ApiKeySettings: React.FC = () => {
     setShowClearDialog(false);
   };
 
-  const isValidApiKey = (key: string) => {
-    return key.startsWith("sk-") && key.length > 20;
-  };
-
   return (
     <Box sx={{ p: 2 }}>
       <Typography variant="h6" gutterBottom>
-        OpenAI Settings
+        AI Settings
       </Typography>
 
       <TextField
         fullWidth
-        label="OpenAI API Key"
+        label="API Key"
         type={showApiKey ? "text" : "password"}
         value={apiKey}
         onChange={(e) => setApiKey(e.target.value)}
-        placeholder="sk-..."
+        placeholder={DEFAULT_SETTINGS.openaiApiKey}
         margin="normal"
-        error={apiKey.length > 0 && !isValidApiKey(apiKey)}
+        disabled={loading}
         helperText={
-          apiKey.length > 0 && !isValidApiKey(apiKey)
-            ? "API key should start with 'sk-' and be at least 20 characters long"
-            : "Get your API key from https://platform.openai.com/api-keys"
+          loading
+            ? "Loading settings..."
+            : "Get your API key from https://platform.openai.com/api-keys (optional for local LLMs)"
         }
         InputProps={{
           endAdornment: (
@@ -98,30 +119,70 @@ const ApiKeySettings: React.FC = () => {
 
       <TextField
         fullWidth
+        label="AI Model"
+        value={aiModel}
+        onChange={(e) => setAiModel(e.target.value)}
+        placeholder={DEFAULT_SETTINGS.aiModel}
+        margin="normal"
+        disabled={loading}
+        helperText={
+          loading
+            ? "Loading settings..."
+            : "Model name to use for API requests (e.g., google/gemma-3-4b, gpt-4o)"
+        }
+      />
+
+      <TextField
+        fullWidth
+        label="API Endpoint"
+        value={apiEndpoint}
+        onChange={(e) => setApiEndpoint(e.target.value)}
+        placeholder={DEFAULT_SETTINGS.apiEndpoint}
+        margin="normal"
+        disabled={loading}
+        helperText={
+          loading
+            ? "Loading settings..."
+            : "API endpoint URL to use for requests (e.g., http://127.0.0.1:1234/v1/chat/completions for local LLM)"
+        }
+      />
+
+      <TextField
+        fullWidth
         label="System Prompt"
         multiline
         minRows={4}
         maxRows={8}
         value={systemPrompt}
         onChange={(e) => setSystemPrompt(e.target.value)}
-        placeholder="System prompt that will be sent at the start of each new conversation..."
+        placeholder={DEFAULT_SETTINGS.systemPrompt}
         margin="normal"
-        helperText="This prompt will be sent to the AI at the beginning of each new conversation to set the context and behavior."
+        disabled={loading}
+        helperText={
+          loading
+            ? "Loading settings..."
+            : "This prompt will be sent to the AI at the beginning of each new conversation to set the context and behavior."
+        }
       />
 
       <Button
         variant="contained"
         onClick={handleSave}
         disabled={
-          !apiKey ||
-          !isValidApiKey(apiKey) ||
+          loading ||
           !systemPrompt.trim() ||
+          !aiModel.trim() ||
+          !apiEndpoint.trim() ||
           saveStatus === "saving"
         }
         sx={{ mt: 2 }}
         fullWidth
       >
-        {saveStatus === "saving" ? "Saving..." : "Save Settings"}
+        {saveStatus === "saving"
+          ? "Saving..."
+          : loading
+            ? "Loading..."
+            : "Save Settings"}
       </Button>
 
       <Button

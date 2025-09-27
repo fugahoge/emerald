@@ -18,14 +18,7 @@ export const useApi = () => {
     setError(null);
 
     try {
-      // Check if API key is configured
-      if (!settings.openaiApiKey) {
-        throw new Error(
-          "OpenAI API key not configured. Please set it in the settings.",
-        );
-      }
-
-      const apiUrl = "https://api.openai.com/v1/chat/completions";
+      const apiUrl = settings.apiEndpoint;
 
       // Build current message with context data
       let currentMessage = request.message;
@@ -113,11 +106,25 @@ export const useApi = () => {
           Authorization: `Bearer ${settings.openaiApiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-5",
+          model: settings.aiModel,
           messages,
           stream: true,
         }),
       });
+
+      console.log("Using model:", settings.aiModel);
+      console.log(
+        "Request body:",
+        JSON.stringify(
+          {
+            model: settings.aiModel,
+            messages,
+            stream: true,
+          },
+          null,
+          2,
+        ),
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
