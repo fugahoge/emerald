@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Message } from "../types";
-import { chatStorage } from "../utils/chatStorage";
 
 export const useChatThread = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -45,21 +44,8 @@ export const useChatThread = () => {
           };
         }
       }
-      chatStorage.saveChatHistory(getThreadId(), newMessages);
       return newMessages;
     });
-  };
-
-  const loadChatHistory = async (id: string) => {
-    try {
-      const chatData = await chatStorage.getChatHistory(id);
-      if (chatData && chatData.messages) {
-        setMessages(chatData.messages);
-        setThreadId(id);
-      }
-    } catch (error) {
-      console.error("Failed to load chat history:", error);
-    }
   };
 
   return {
@@ -68,6 +54,5 @@ export const useChatThread = () => {
     addMessage,
     appendToLastMessage,
     completeLastMessage,
-    loadChatHistory,
   };
 };

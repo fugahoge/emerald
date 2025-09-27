@@ -9,6 +9,8 @@ vi.mock("../useSettings", () => ({
     settings: {
       openaiApiKey: "sk-test-key-123",
       systemPrompt: "You are a helpful AI assistant for testing.",
+      aiModel: "gpt-5",
+      apiEndpoint: "https://api.openai.com/v1/chat/completions",
     },
     loading: false,
     updateApiKey: vi.fn(),

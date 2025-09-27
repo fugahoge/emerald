@@ -7,15 +7,9 @@ import {
   Alert,
   InputAdornment,
   IconButton,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
 } from "@mui/material";
-import { Visibility, VisibilityOff, Delete } from "@mui/icons-material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useSettings, DEFAULT_SETTINGS } from "../hooks/useSettings";
-import { chatStorage } from "../utils/chatStorage";
 
 const ApiKeySettings: React.FC = () => {
   const { settings, saveSettings, loading } = useSettings();
@@ -27,10 +21,6 @@ const ApiKeySettings: React.FC = () => {
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "success" | "error"
   >("idle");
-  const [clearHistoryStatus, setClearHistoryStatus] = useState<
-    "idle" | "clearing" | "success" | "error"
-  >("idle");
-  const [showClearDialog, setShowClearDialog] = useState(false);
 
   // 設定が読み込まれたときに状態を更新
   useEffect(() => {
@@ -66,20 +56,6 @@ const ApiKeySettings: React.FC = () => {
       setSaveStatus("error");
       setTimeout(() => setSaveStatus("idle"), 2000);
     }
-  };
-
-  const handleClearHistory = async () => {
-    setClearHistoryStatus("clearing");
-    try {
-      await chatStorage.clearAllChatHistory();
-      setClearHistoryStatus("success");
-      setTimeout(() => setClearHistoryStatus("idle"), 2000);
-    } catch (error) {
-      console.error("Failed to clear chat history:", error);
-      setClearHistoryStatus("error");
-      setTimeout(() => setClearHistoryStatus("idle"), 2000);
-    }
-    setShowClearDialog(false);
   };
 
   return (
@@ -184,60 +160,6 @@ const ApiKeySettings: React.FC = () => {
             ? "Loading..."
             : "Save Settings"}
       </Button>
-
-      <Button
-        variant="outlined"
-        color="error"
-        onClick={() => setShowClearDialog(true)}
-        disabled={clearHistoryStatus === "clearing"}
-        sx={{ mt: 1 }}
-        fullWidth
-        startIcon={<Delete />}
-      >
-        {clearHistoryStatus === "clearing"
-          ? "Clearing..."
-          : "Clear Chat History"}
-      </Button>
-
-      <Dialog
-        open={showClearDialog}
-        onClose={() => setShowClearDialog(false)}
-        aria-labelledby="clear-history-dialog-title"
-        aria-describedby="clear-history-dialog-description"
-      >
-        <DialogTitle id="clear-history-dialog-title">
-          Clear Chat History
-        </DialogTitle>
-        <DialogContent>
-          <DialogContentText id="clear-history-dialog-description">
-            Are you sure you want to clear all chat history? This action cannot
-            be undone.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowClearDialog(false)}>Cancel</Button>
-          <Button
-            onClick={handleClearHistory}
-            color="error"
-            variant="contained"
-            autoFocus
-          >
-            Clear History
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {clearHistoryStatus === "success" && (
-        <Alert severity="success" sx={{ mt: 2 }}>
-          Chat history cleared successfully!
-        </Alert>
-      )}
-
-      {clearHistoryStatus === "error" && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          Failed to clear chat history. Please try again.
-        </Alert>
-      )}
 
       {saveStatus === "success" && (
         <Alert severity="success" sx={{ mt: 2 }}>

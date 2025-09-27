@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { ThemeProvider, createTheme } from "@mui/material/styles";
 import CssBaseline from "@mui/material/CssBaseline";
 import {
@@ -16,7 +16,6 @@ import AddIcon from "@mui/icons-material/Add";
 import ChatArea from "../components/ChatArea";
 import InputArea from "../components/InputArea";
 import ContextSelector from "../components/ContextSelector";
-import ThreadList from "../components/ThreadList";
 import ApiKeySettings from "../components/ApiKeySettings";
 import { Message, ImageData } from "../types";
 import { useApi } from "../hooks/useApi";
@@ -63,7 +62,6 @@ const App: React.FC = () => {
     addMessage,
     appendToLastMessage,
     completeLastMessage,
-    loadChatHistory,
   } = useChatThread();
 
   const { sendMessage, error } = useApi();
@@ -176,11 +174,6 @@ const App: React.FC = () => {
             },
           }}
         >
-          <ThreadList
-            onThreadSelect={loadChatHistory}
-            onClose={() => setDrawerOpen(false)}
-          />
-          <Divider />
           <ApiKeySettings />
         </Drawer>
         <Container

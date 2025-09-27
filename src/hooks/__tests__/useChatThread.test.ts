@@ -12,16 +12,6 @@ Object.defineProperty(global, "crypto", {
   writable: true,
 });
 
-// Mock chatStorage
-vi.mock("../../utils/chatStorage", () => ({
-  chatStorage: {
-    getChatHistory: vi.fn(),
-    saveChatHistory: vi.fn(),
-  },
-}));
-
-import { chatStorage } from "../../utils/chatStorage";
-
 describe("useChatThread", () => {
   const mockMessage: Message = {
     id: "msg-1",
@@ -51,7 +41,6 @@ describe("useChatThread", () => {
     expect(typeof result.current.addMessage).toBe("function");
     expect(typeof result.current.appendToLastMessage).toBe("function");
     expect(typeof result.current.completeLastMessage).toBe("function");
-    expect(typeof result.current.loadChatHistory).toBe("function");
   });
 
   it("returns same ID once threadId is generated", () => {
@@ -134,10 +123,6 @@ describe("useChatThread", () => {
     });
 
     expect(result.current.messages[0].status).toBe("done");
-    expect(chatStorage.saveChatHistory).toHaveBeenCalledWith(
-      "test-uuid-123",
-      result.current.messages,
-    );
   });
 
   it("completeLastMessage does not change state for non-AI messages", async () => {
@@ -168,78 +153,6 @@ describe("useChatThread", () => {
     });
 
     expect(result.current.messages[0].status).toBe("done");
-  });
-
-  it("can load chat history", async () => {
-    const mockChatData = {
-      messages: [mockMessage, mockAIMessage],
-      title: "Test Chat",
-      lastUpdated: 1625097720000,
-    };
-
-    vi.mocked(chatStorage.getChatHistory).mockResolvedValueOnce(mockChatData);
-
-    const { result } = renderHook(() => useChatThread());
-
-    await act(async () => {
-      await result.current.loadChatHistory("existing-thread-id");
-    });
-
-    expect(result.current.messages).toEqual(mockChatData.messages);
-    expect(result.current.threadId).toBe("existing-thread-id");
-    expect(chatStorage.getChatHistory).toHaveBeenCalledWith(
-      "existing-thread-id",
-    );
-  });
-
-  it("loading non-existent chat history does not cause error", async () => {
-    vi.mocked(chatStorage.getChatHistory).mockResolvedValueOnce(null);
-
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const { result } = renderHook(() => useChatThread());
-
-    await act(async () => {
-      await result.current.loadChatHistory("non-existent-id");
-    });
-
-    expect(result.current.messages).toEqual([]);
-    expect(consoleSpy).not.toHaveBeenCalled();
-    consoleSpy.mockRestore();
-  });
-
-  it("handles chat history loading errors", async () => {
-    const error = new Error("Storage error");
-    vi.mocked(chatStorage.getChatHistory).mockRejectedValueOnce(error);
-
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const { result } = renderHook(() => useChatThread());
-
-    await act(async () => {
-      await result.current.loadChatHistory("error-id");
-    });
-
-    expect(consoleSpy).toHaveBeenCalledWith(
-      "Failed to load chat history:",
-      error,
-    );
-    expect(result.current.messages).toEqual([]);
-    consoleSpy.mockRestore();
-  });
-
-  it("completeLastMessage does nothing when no messages", async () => {
-    const { result } = renderHook(() => useChatThread());
-
-    await act(async () => {
-      result.current.completeLastMessage();
-    });
-
-    expect(result.current.messages).toHaveLength(0);
-    expect(chatStorage.saveChatHistory).toHaveBeenCalledWith(
-      "test-uuid-123",
-      [],
-    );
   });
 
   it("can call appendToLastMessage multiple times", () => {
